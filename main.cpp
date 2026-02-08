@@ -1,20 +1,25 @@
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
-
+#include <boost/json.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
 #include <boost/beast/ssl.hpp>
+
+#include <openssl/ssl.h>
 #include <iostream>
 #include <string>
 #include <string_view>
 #include <vector>
 #include <thread>
 #include <chrono>
+#include <queue>
 
 namespace asio = boost::asio;
 namespace ssl  = boost::asio::ssl;
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
+namespace json = boost::json;
+
 
 using tcp = asio::ip::tcp;
 
@@ -40,6 +45,7 @@ connect_ws(asio::io_context& ioc, ssl::context& ssl_ctx, const WsConfig& cfg){
   ws.next_layer().set_verify_callback(ssl::host_name_verification(cfg.host));
 
   // TLS handshake
+  SSL_set_tlsext_host_name(ws.next_layer().native_handle(), cfg.host.c_str());
   ws.next_layer().handshake(ssl::stream_base::client);
   // WebSocket timeouts + automatic keepalive pings
   ws.set_option(websocket::stream_base::timeout::suggested(beast::role_type::client));
@@ -59,8 +65,9 @@ connect_ws(asio::io_context& ioc, ssl::context& ssl_ctx, const WsConfig& cfg){
 void send_subscribe(websocket::stream<ssl::stream<tcp::socket>>& ws, 
 const std::string& asset_id, bool custom_feature_enabled) {
   std::string msg =
-    std::string(R"({"assets_ids":[")") + asset_id + R"("],"type":"market")" +
-    (custom_feature_enabled ? R"(,"custom_feature_enabled":true})" : "}");
+    std::string(R"({"assets_ids": [")") + asset_id + R"("],"type": "market")" +
+    (custom_feature_enabled ? R"(,"custom_feature_enabled": true})" : "}");
+  std::cout << "SUB: " << msg << "\n";
   ws.write(asio::buffer(msg));
 }
 
@@ -77,8 +84,9 @@ int main(){
       ssl_ctx.set_default_verify_paths(); // OS CA store
 
       auto ws = connect_ws(ioc, ssl_ctx, cfg);
+      std::cout<<"sucess\n";
 
-      std::string asset_id = "assetID";
+      std::string asset_id = "101676997363687199724245607342877036148401850938023978421879460310389391082353";
 
       send_subscribe(ws, asset_id, /*custom_feature_enabled=*/false);
 
@@ -87,6 +95,11 @@ int main(){
         buffer.consume(buffer.size());
         ws.read(buffer);
         std::string text = beast::buffers_to_string(buffer.data());
+        std::queue<std::string> toParse;
+        toParse.push(text);
+        // maybe add a thread create with + a lock for an order book associated with each market
+        // send the reference of the queue to the thread, maybe create this permanent thread before
+        // the for loop, think about it tomorrow
         std::cout << text << "\n";
       }
     }
