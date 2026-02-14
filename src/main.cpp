@@ -61,6 +61,7 @@ struct AssetBook {
 
 void parser(std::unordered_map<std::string, AssetBook> *books,
 std::queue<std::string> *toParse ){
+  
   for (;;){
     
   std::string txt;
@@ -77,14 +78,12 @@ std::queue<std::string> *toParse ){
     txt = std::move(toParse->front());
     toParse->pop();
   }
+  
   json::error_code ec;
   json::value v = json::parse(txt, ec);
   if (ec) {
     continue;
   }
-
-
-
 
   }
 }
