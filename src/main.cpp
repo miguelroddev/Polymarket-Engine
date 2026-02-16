@@ -1,10 +1,10 @@
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
+#include <boost/asio/buffers_iterator.hpp>
 #include <boost/json.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
 #include <boost/beast/ssl.hpp>
-
 #include <openssl/ssl.h>
 #include <iostream>
 #include <string>
@@ -99,6 +99,7 @@ websocket::stream<ssl::stream<tcp::socket>>
 connect_ws(asio::io_context& ioc, ssl::context& ssl_ctx, const WsConfig& cfg){
   tcp::resolver resolver{ioc};
   websocket::stream<ssl::stream<tcp::socket>> ws{ioc, ssl_ctx};
+  ws.text(true);
   auto results = resolver.resolve(cfg.host, cfg.port);
   //TCP CONNECT
   asio::connect(
@@ -129,12 +130,18 @@ connect_ws(asio::io_context& ioc, ssl::context& ssl_ctx, const WsConfig& cfg){
 }
 
 void send_subscribe(websocket::stream<ssl::stream<tcp::socket>>& ws, 
-const std::string& asset_id, bool custom_feature_enabled) {
-  std::string msg =
-    std::string(R"({"assets_ids": [")") + asset_id + R"("],"type": "market")" +
-    (custom_feature_enabled ? R"(,"custom_feature_enabled": true})" : "}");
-  std::cout << "SUB: " << msg << "\n"; //DEBUG
-  ws.write(asio::buffer(msg));
+const std::vector<std::string>& ids) {
+  json::object o;
+  json::array a;
+  for (auto& id : ids) a.emplace_back(id);
+
+  o["assets_ids"] = std::move(a);
+  o["type"] = "market";
+  o["operation"] = "subscribe";
+
+  auto s = json::serialize(o);
+  std::cout << "SUB: " << s << "\n";
+  ws.write(asio::buffer(s));
 }
 
 int main(){
@@ -155,27 +162,42 @@ int main(){
 
       auto ws = connect_ws(ioc, ssl_ctx, cfg);
       std::cout<<"sucess\n";
-      // curl -s "https://gamma-api.polymarket.com/markets/517310" | jq -r '.clobTokenIds'
+      // curl -s "https://gamma-api.polymarket.com/events/slug/will-jesus-christ-return-before-2027" | jq -r '.clobTokenIds'
+      std::vector<std::string> asset_ids;
       std::string asset_id_yes = "101676997363687199724245607342877036148401850938023978421879460310389391082353";
       std::string asset_id_no = "4153292802911610701832309484716814274802943278345248636922528170020319407796";
-      std::string asset_ids = asset_id_yes + R"(")" + ',' + R"(")" + asset_id_no;
-      send_subscribe(ws, asset_ids, /*custom_feature_enabled=*/false);
+      asset_ids.push_back(asset_id_yes);
+      asset_ids.push_back(asset_id_no);
+      send_subscribe(ws, asset_ids);
 
       beast::flat_buffer buffer;
       for (;;) {
         buffer.consume(buffer.size());
-        ws.read(buffer);
+
+        beast::error_code ec;
+        ws.read(buffer, ec);
+        if (ec) {
+          std::cerr << "ws.read error: " << ec.message() << "\n";
+          break;
+        }
+        std::cout << "MSG bytes=" << buffer.size()
+          << " got_text=" << ws.got_text() << "\n";
+
+        if (!ws.got_text()) continue;
+
         std::string text = beast::buffers_to_string(buffer.data());
+        if (text.find_first_not_of(" \r\n\t") == std::string::npos) continue;
+        std::cout << "TEXT: " << text << "\n"; // output must be here, if after std::move(text) then undefined behaviour
+        /*
+        // output must be above. if after std::move(text) then unspecified state since text(string) might become empty
+        */
         {
           std::lock_guard<std::mutex> lock(queueMutex);
           toParse.push(std::move(text));
         }
         queueCV.notify_one();
-        // maybe add a thread create with + a lock for an order book associated with each market
-        // send the reference of the queue to the thread, maybe create this permanent thread before
-        // the for loop, think about it tomorrow
-        std::cout << text << "\n";
       }
+
     }
     catch (const std::exception& e) {
       std::cerr << "WS error: " << e.what() << "\n";
