@@ -19,7 +19,7 @@ target_include_directories(polymarket_engine PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Warnings (optional but recommended)
+# Warnings
 if(MSVC)
   target_compile_options(polymarket_engine PRIVATE /W4 /permissive-)
 else()
