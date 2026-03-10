@@ -161,13 +161,16 @@ std::queue<std::string>* toParse) {
         book.market   = json::value_to<std::string>(obj.at("market"));
         book.asset_id = json::value_to<std::string>(obj.at("asset_id"));
 
-        const auto& ts_j = obj.at("timestamp").as_string();
-        std::string_view ts_sv(ts_j.data(), ts_j.size());
-        book.timestamp_ms = parse_timestamp_ms(ts_sv);
-
-        const auto& ltp_j = obj.at("last_trade_price").as_string();
-        std::string_view ltp_sv(ltp_j.data(), ltp_j.size());
-        book.last_trade_fp = parse_price_fp(ltp_sv);
+        {
+          const auto& ts_j = obj.at("timestamp").as_string();
+          std::string_view ts_sv(ts_j.data(), ts_j.size());
+          book.timestamp_ms = parse_timestamp_ms(ts_sv);
+        }
+        {
+          const auto& ltp_j = obj.at("last_trade_price").as_string();
+          std::string_view ltp_sv(ltp_j.data(), ltp_j.size());
+          book.last_trade_fp = parse_price_fp(ltp_sv);
+        }
 
         if (auto it = obj.find("tick_size"); it != obj.end() && it->value().is_string()) {
           const auto& tick_j = it->value().as_string();
