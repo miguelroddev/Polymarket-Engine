@@ -1,101 +1,13 @@
-#include "parse.hpp"
-#include "wsconnect.hpp"
-#include <thread>
-#include <chrono>
-
-namespace asio = boost::asio;
-namespace ssl  = boost::asio::ssl;
-namespace beast = boost::beast;
-namespace websocket = beast::websocket;
-namespace json = boost::json;
-
-
-using tcp = asio::ip::tcp;
-
-std::mutex queueMutex;
-std::condition_variable queueCV;
-
-constexpr i64 PRICE_SCALE = 10000;    // supports 0.0001 price precision (Polymarket Max)
-constexpr i64 SIZE_SCALE  = 1000000;  // supports 6 decimal places for size (Polymarket Max)
-
-struct BookPrint{
-  std::string best_bid;
-  std::string best_ask;
-  std::string spread;
-  std::string last_trade;
-  std::string timestamp;
-  std::vector<std::string> bid;
-  std::vector<std::string> ask;
-};
-
+#include "app.hpp"
 
 int main(){
-  WsConfig cfg;
-
-  // Backoff settings
-  int attempt = 0;
-
-  for (;;) {
-    std::unordered_map<std::string, AssetBook> books;
-    std::queue<std::string> toParse;
-    std::thread t(parser,&books, &toParse);
-
-    try {
-      asio::io_context ioc;
-      ssl::context ssl_ctx{ssl::context::tlsv12_client};
-      ssl_ctx.set_default_verify_paths(); // OS CA store
-
-      auto ws = connect_ws(ioc, ssl_ctx, cfg);
-      std::cout<<"sucess\n";
-      // would be cool to implement a way where the user submits the link and then can choose
-      // which assets of a specific event he wants to subscribe to
-      // curl -s "https://gamma-api.polymarket.com/events/slug/will-jesus-christ-return-before-2027" | jq -r '.clobTokenIds'
-      std::vector<std::string> asset_ids;
-      std::string asset_id_yes = "69324317355037271422943965141382095011871956039434394956830818206664869608517";
-      std::string asset_id_no = "51797157743046504218541616681751597845468055908324407922581755135522797852101";
-      asset_ids.push_back(asset_id_yes);
-      asset_ids.push_back(asset_id_no);
-      send_subscribe(ws, asset_ids);
-
-      beast::flat_buffer buffer;
-      for (;;) {
-        buffer.consume(buffer.size());
-
-        beast::error_code ec;
-        ws.read(buffer, ec);
-        if (ec) {
-          std::cerr << "ws.read error: " << ec.message() << "\n";
-          break;
-        }
-        std::cout << "MSG bytes=" << buffer.size()
-          << " got_text=" << ws.got_text() << "\n";
-
-        if (!ws.got_text()) continue;
-
-        std::string text = beast::buffers_to_string(buffer.data());
-        if (text.find_first_not_of(" \r\n\t") == std::string::npos) continue;
-        std::cout << "TEXT: " << text << "\n"; // output must be here, if after std::move(text) then undefined behaviour
-        /*
-        // output must be above. if after std::move(text) then unspecified state since text(string) might become empty
-        */
-        {
-          std::lock_guard<std::mutex> lock(queueMutex);
-          toParse.push(std::move(text));
-        }
-        queueCV.notify_one();
-      }
-
-    }
-    catch (const std::exception& e) {
-      std::cerr << "WS error: " << e.what() << "\n";
-      queueCV.notify_all();
-      if (t.joinable()) t.join();
-    }
-
-    // reconnect backoff
-    attempt = std::min(attempt + 1, 8);
-    auto sleep_ms = std::chrono::milliseconds(250 * (1 << attempt));
-    std::this_thread::sleep_for(sleep_ms);
+  try {
+    App app;
+    app.run();
+  }
+  catch (const std::exception& e) {
+    std::cerr << "Fatal Error: "<< e.what() << '\n';
+    return -1;
   }
   return 0;
 }
