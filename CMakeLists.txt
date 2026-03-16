@@ -12,6 +12,8 @@ endif()
 
 add_executable(polymarket_engine
   src/main.cpp
+  src/parse.cpp
+  src/wsconnect.cpp
   # to be added more .cpp files
 )
 
