@@ -10,6 +10,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <functional>
+#include <iostream>
 
 using i64 = long long;
 namespace json = boost::json;
@@ -36,6 +37,9 @@ struct OrderBook {
   i64 best_ask_price() const ;
   i64 best_bid_size()  const ;
   i64 best_ask_size()  const ;
+
+  void debug_bid(std::string assetID);
+  void debug_ask(std::string assetID);
 };
 
 struct AssetBook {
@@ -45,7 +49,10 @@ struct AssetBook {
   i64 timestamp_ms = 0;
   i64 last_trade_fp = -1;
   OrderBook book;
+
+  void debug();
 };
 
 
 void parser(std::unordered_map<std::string, AssetBook>* books, std::queue<std::string>* toParse);
+void parse_book_event(std::unordered_map<std::string, AssetBook>* books, json::object const& obj);
