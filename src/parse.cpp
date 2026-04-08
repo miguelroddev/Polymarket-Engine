@@ -142,7 +142,7 @@ void parse_book_event(std::unordered_map<std::string, AssetBook>* books, json::o
 
   book.book = std::move(orderBook);
   // lock probably missing? below
-  book.debug(); //DEBUG!!!!!
+  //book.debug(); //DEBUG!!!!!
   (*books)[book.asset_id] = std::move(book);
 }
 
@@ -182,7 +182,7 @@ void parse_price_change_event(std::unordered_map<std::string, AssetBook>* books,
     } else if (side_sv == "SELL") {
       ab.book.addAsk(price_fp, size_fp);
     }
-    ab.debug();
+    //ab.debug();
   }
 }
 

@@ -10,13 +10,22 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
-add_executable(polymarket_engine
-  src/main.cpp
+add_library(polymarket_core
   src/parse.cpp
   src/wsconnect.cpp
   src/app.cpp
-  # to be added more .cpp files
 )
+
+add_executable(polymarket_engine
+  src/main.cpp
+)
+
+enable_testing()
+add_executable(test_parse tests/test_parse.cpp)
+target_link_libraries(test_parse PRIVATE polymarket_core)
+add_test(NAME test_parse COMMAND test_parse)
+
+target_link_libraries(polymarket_engine PRIVATE polymarket_core)
 
 target_include_directories(polymarket_engine PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include

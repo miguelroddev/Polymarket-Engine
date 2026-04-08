@@ -1,5 +1,6 @@
 #include "app.hpp"
 
+std::shared_mutex booksMutex;
 std::mutex queueMutex;
 std::condition_variable queueCV;
 

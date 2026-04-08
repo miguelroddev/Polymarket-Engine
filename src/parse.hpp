@@ -11,10 +11,12 @@
 #include <condition_variable>
 #include <functional>
 #include <iostream>
+#include <shared_mutex>
 
 using i64 = long long;
 namespace json = boost::json;
 
+extern std::shared_mutex booksMutex;
 extern std::mutex queueMutex;
 extern std::condition_variable queueCV;
 
