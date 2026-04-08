@@ -6,6 +6,7 @@ This project is still in active development
 
 # Compile
 cmake -B build # only first time
+
 cmake --build build -j
 # Execute
 ./build/polymarket_engine
