@@ -8,6 +8,14 @@
 #include <boost/beast/ssl.hpp>
 #include <openssl/ssl.h>
 #include <iostream>
+#include <boost/asio.hpp>
+#include <boost/asio/awaitable.hpp>
+#include <boost/asio/use_awaitable.hpp>
+#include <boost/asio/co_spawn.hpp>
+#include <boost/asio/detached.hpp>
+#include <boost/asio/redirect_error.hpp>
+#include <boost/asio/steady_timer.hpp>
+#include <boost/asio/strand.hpp>
 
 namespace asio = boost::asio;
 namespace ssl  = boost::asio::ssl;
@@ -25,7 +33,7 @@ struct WsConfig {
 };
 
 websocket::stream<ssl::stream<tcp::socket>> 
-connect_ws(asio::io_context& ioc, ssl::context& ssl_ctx, const WsConfig& cfg);
+connect_ws(asio::any_io_executor ex, ssl::context& ssl_ctx, const WsConfig& cfg);
 
 void send_subscribe(websocket::stream<ssl::stream<tcp::socket>>& ws, 
 const std::vector<std::string>& ids);

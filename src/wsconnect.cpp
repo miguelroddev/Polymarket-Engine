@@ -1,9 +1,9 @@
 #include "wsconnect.hpp"
 
 websocket::stream<ssl::stream<tcp::socket>> 
-connect_ws(asio::io_context& ioc, ssl::context& ssl_ctx, const WsConfig& cfg){
-  tcp::resolver resolver{ioc};
-  websocket::stream<ssl::stream<tcp::socket>> ws{ioc, ssl_ctx};
+connect_ws(asio::any_io_executor ex, ssl::context& ssl_ctx, const WsConfig& cfg){
+  tcp::resolver resolver{ex};
+  websocket::stream<ssl::stream<tcp::socket>> ws{ex, ssl_ctx};
   ws.text(true);
   auto results = resolver.resolve(cfg.host, cfg.port);
   //TCP CONNECT

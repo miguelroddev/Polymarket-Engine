@@ -30,7 +30,7 @@ class App {
 public:
   void run();
 private:
-  void runSession();
+  asio::awaitable<void> runSession();
   std::unordered_map<std::string, AssetBook> books;
   std::queue<std::string> toParse;
 };
